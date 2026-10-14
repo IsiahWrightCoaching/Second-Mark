@@ -20,6 +20,14 @@ export async function middleware(request: NextRequest) {
   // getUser() checks the token with Supabase; never trust getSession() alone on the server.
   const { data: { user } } = await supabase.auth.getUser();
   const path = request.nextUrl.pathname;
+  // If Supabase falls back to the Site URL (for example the redirect address isn't on its approved list),
+  // the code or error arrives on the wrong page. Pass it to the callback so it isn't lost.
+  const sp = request.nextUrl.searchParams;
+  if (!path.startsWith('/auth') && (sp.has('code') || sp.has('error_code'))) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/auth/callback';
+    return NextResponse.redirect(url);
+  }
   if (!user && !PUBLIC.some((p) => path.startsWith(p))) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
