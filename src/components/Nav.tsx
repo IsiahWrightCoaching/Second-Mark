@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Brand } from './Brand';
 
 const TABS = [
   { href: '/today', label: 'Today', icon: <><circle cx="12" cy="12" r="4" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2" /></> },
@@ -14,6 +15,8 @@ export function Nav() {
   const path = usePathname();
   return (
     <nav aria-label="Main">
+      {/* On a wide screen the tab bar becomes a sidebar, with the brand at the top. */}
+      <div className="side-brand"><Brand /></div>
       <div className="in">
         {TABS.map((t) => (
           <Link key={t.href} href={t.href} className="tab" aria-current={path.startsWith(t.href) ? 'page' : undefined}>
