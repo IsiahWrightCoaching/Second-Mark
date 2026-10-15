@@ -12,6 +12,9 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Second Mark',
   description: 'The other side of the trade. A trading journal that checks whether you followed your plan.',
+  applicationName: 'Second Mark',
+  // iPhone: opens full screen from the home screen, with a dark status bar.
+  appleWebApp: { capable: true, title: 'Second Mark', statusBarStyle: 'black' },
 };
 export const viewport: Viewport = {
   width: 'device-width',

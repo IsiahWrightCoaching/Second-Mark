@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { Trade, Account } from './types';
-import { wilson, relimit, walkAccount, runStateTest, STATE_TESTS, planScore, rFromUsd, dayKey, followed, core, ZCRIT, afterTwoWins, feelingBreakdown, insights } from './index';
+import { wilson, relimit, walkAccount, runStateTest, STATE_TESTS, planScore, rFromUsd, dayKey, followed, core, ZCRIT, afterTwoWins, feelingBreakdown, insights, deriveFlags } from './index';
 
 let n = 0;
 const T = (o: Partial<Trade>): Trade => ({
@@ -148,5 +148,29 @@ describe('feeling, water, winning runs and early strategy changes', () => {
       ...Array.from({ length: 10 }, (_, i) => T({ strategyVersion: 2, entryAt: 100 + i, r: i % 2 ? 1 : -1 })),
     ];
     expect(insights(ts, ctx({ s: S({ version: 2 }) }, ts)).some((c) => c.source === 'earlyChange')).toBe(false);
+  });
+});
+
+describe('flags worked out from a trade’s place in the account', () => {
+  const H = (id: string, h: number, r: number, usd = r * 500, strategyId = 's') => ({ id, strategyId, entryAt: Date.UTC(2026, 9, 1, h), r, usd });
+  it('after a loss, below the fee, and over the daily limit', () => {
+    const f = deriveFlags({ type: 'challenge', fee: 500 }, [H('a', 9, -1), H('b', 10, 2), H('c', 11, 1)], { s: 2 }, 'UTC');
+    expect(f.get('a')).toEqual({ afterLoss: false, belowFee: true, overLimit: false });
+    expect(f.get('b')).toEqual({ afterLoss: true, belowFee: true, overLimit: false });
+    // After b the account is +500, which covers the 500 fee.
+    expect(f.get('c')).toEqual({ afterLoss: false, belowFee: false, overLimit: true });
+  });
+  it('a back-filled earlier trade re-marks the ones after it', () => {
+    const f = deriveFlags({ type: 'funded', fee: 0 }, [H('late', 15, 1), H('early', 8, -1)], { s: 1 }, 'UTC');
+    expect(f.get('early')!.overLimit).toBe(false);
+    expect(f.get('late')).toEqual({ afterLoss: true, belowFee: false, overLimit: true });
+  });
+  it('a breakeven is not a loss, and the limit resets each local day', () => {
+    const f = deriveFlags({ type: 'demo', fee: 0 }, [
+      { id: 'x', strategyId: 's', entryAt: Date.UTC(2026, 9, 1, 22, 30), r: -0.02, usd: -10 },
+      { id: 'y', strategyId: 's', entryAt: Date.UTC(2026, 9, 1, 23, 30), r: 1, usd: 500 },
+    ], { s: 1 }, 'Europe/London');
+    // 22:30 and 23:30 UTC are 23:30 and 00:30 in London: two different days.
+    expect(f.get('y')).toEqual({ afterLoss: false, belowFee: false, overLimit: false });
   });
 });
