@@ -1,4 +1,4 @@
-import type { Trade, Strategy, Account, DayRating } from './types';
+import type { Trade, Strategy, Account, DayRating, Feeling } from './types';
 import {
   MIN, GAP, ZCRIT, EARLY, followed, offPlan, outcome, sumR, avgR, pc, chron, core,
   welch, prop2, probit, profitFactor, sessionOf, localHour, weekday, tradeNumber, dayKey,
@@ -8,7 +8,7 @@ import { fR, fR2, pl, money, pfText } from './format';
 /* ================= state patterns ================= */
 
 export interface StateTest {
-  key: 'sleep' | 'schedule' | 'carrying' | 'fuel' | 'sharpness' | 'afterLoss' | 'belowFee';
+  key: 'sleep' | 'schedule' | 'carrying' | 'feeling' | 'water' | 'sharpness' | 'afterLoss' | 'belowFee';
   has?: (t: Trade) => boolean;
   only?: (t: Trade) => boolean;
   group: (t: Trade) => boolean;
@@ -24,7 +24,8 @@ export const STATE_TESTS: StateTest[] = [
   { key: 'sleep', has: (t) => t.sleepHours != null, group: (t) => (t.sleepHours ?? 99) < 6, measure: offPlan, measureName: 'went off plan', label: "on under 6 hours' sleep", other: 'on 6 hours or more', tip: 'On a short night, cut your size or sit the day out. Your own numbers say it costs you.' },
   { key: 'schedule', has: (t) => t.usualSchedule != null, group: (t) => t.usualSchedule === false, measure: offPlan, measureName: 'went off plan', label: 'after an off-schedule night', other: 'after a normal night', tip: 'Treat a broken or late night like a short one, even if the hours look fine.' },
   { key: 'carrying', has: (t) => t.carrying != null, group: (t) => t.carrying !== 'nothing', measure: (t) => !t.planned, measureName: 'were impulsive', label: 'on days you were carrying something from outside trading', other: 'on clear days', tip: 'Name it before you open a chart. If it is loud, trade smaller or not at all.' },
-  { key: 'fuel', has: (t) => t.fuel != null, group: (t) => t.fuel !== 'both', measure: offPlan, measureName: 'went off plan', label: "on days you hadn't had both water and food", other: 'on days you had both', tip: 'Have water and something to eat before the session, and see whether the gap closes.' },
+  { key: 'feeling', has: (t) => t.feeling != null, group: (t) => t.feeling !== 'calm', measure: offPlan, measureName: 'went off plan', label: "on days you didn't feel calm", other: 'on calm days', tip: "Name the feeling before you open a chart. If you're not calm, trade at your default size with a one-trade limit, or sit the day out." },
+  { key: 'water', has: (t) => t.water != null, group: (t) => t.water === false, measure: offPlan, measureName: 'went off plan', label: "on days you hadn't had water before trading", other: 'on days you had', tip: 'Have a glass of water before the session, and see whether the gap closes.' },
   { key: 'sharpness', has: (t) => t.sharpness != null, group: (t) => (t.sharpness ?? 99) <= 4, measure: offPlan, measureName: 'went off plan', label: 'when you rated yourself 4 or under', other: 'when you rated yourself 5 or over', tip: 'Rate yourself 4 or under? Set a one-trade limit for the day, at your default size.' },
   { key: 'afterLoss', group: (t) => t.afterLoss, measure: (t) => !t.planned, measureName: 'were impulsive', label: 'straight after a loss', other: 'the rest of the time', tip: 'Set a fixed break after every loss, such as 15 minutes away from the screen. A rule made in advance beats a decision made in the moment.' },
   { key: 'belowFee', group: (t) => t.belowFee, measure: (t) => t.riskPct > t.defaultRiskPct, measureName: 'were oversized', label: 'while still down on your challenge fee', other: 'once the fee was covered', tip: 'While you are still down on the fee, lock your risk at the default. Being down is when sizing creeps.' },
@@ -37,7 +38,7 @@ export type StateResult =
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** A pattern needs MIN trades each side, a GAP-point difference and z >= ZCRIT (Bonferroni over the 7 tests). */
+/** A pattern needs MIN trades each side, a GAP-point difference and z >= ZCRIT (Bonferroni over the 8 tests). */
 export function runStateTest(T: StateTest, ts: Trade[], isChallenge: (t: Trade) => boolean): StateResult {
   const pool = ts.filter((t) => (!T.has || T.has(t)) && (T.key !== 'belowFee' || isChallenge(t)));
   const A = pool.filter(T.group), B = pool.filter((t) => !T.group(t));
@@ -129,6 +130,28 @@ export function afterTwoLosses(ts: Trade[]): { group: Trade[]; rest: Trade[] } {
     (outcome(c[i - 1]) === 'loss' && outcome(c[i - 2]) === 'loss' ? group : rest).push(t);
   });
   return { group, rest };
+}
+
+export function afterTwoWins(ts: Trade[]): { group: Trade[]; rest: Trade[] } {
+  const c = chron(ts), group: Trade[] = [], rest: Trade[] = [];
+  c.forEach((t, i) => {
+    if (i < 2) return;
+    (outcome(c[i - 1]) === 'win' && outcome(c[i - 2]) === 'win' ? group : rest).push(t);
+  });
+  return { group, rest };
+}
+
+export const FEELING_LABEL: Record<Feeling, string> = { calm: 'Calm', anxious: 'Anxious', frustrated: 'Frustrated or angry', flat: 'Flat or bored', excited: 'Excited' };
+
+/**
+ * Plan rate for each feeling, for display under the feeling pattern. Descriptive only: the single
+ * calm-against-the-rest test decides whether anything is claimed, so the bar doesn't rise per option.
+ */
+export function feelingBreakdown(ts: Trade[]): { feeling: Feeling; label: string; n: number; toPlan: number | null }[] {
+  return (Object.keys(FEELING_LABEL) as Feeling[]).map((f) => {
+    const v = ts.filter((t) => t.feeling === f);
+    return { feeling: f, label: FEELING_LABEL[f], n: v.length, toPlan: v.length >= MIN ? pc(v.filter(followed).length, v.length) : null };
+  });
 }
 
 export function streaks(ts: Trade[]) {
@@ -233,7 +256,7 @@ export function mistakeCosts(ts: Trade[]): { rows: MistakeCost[]; total: { n: nu
 /* ================= insights: Stats findings stated on Review ================= */
 
 export interface Insight {
-  source: SplitKey | 'pattern' | 'streak' | 'rule' | 'robust' | 'bigLosses' | 'drawdown' | 'ratings' | 'demoGap';
+  source: SplitKey | 'pattern' | 'streak' | 'rule' | 'robust' | 'bigLosses' | 'drawdown' | 'ratings' | 'demoGap' | 'winStreak' | 'earlyChange';
   tier: 'clear' | 'early' | 'fact';
   score: number;
   head: string;
@@ -333,6 +356,19 @@ export function insights(ts: Trade[], c: InsightCtx): Insight[] {
     }
   }
 
+  /* 3b after two wins in a row: sizing creeps with "house money" (Thaler and Johnson, 1990) */
+  {
+    const { group, rest } = afterTwoWins(ts);
+    const big = (t: Trade) => t.riskPct > t.defaultRiskPct;
+    if (group.length >= MIN && rest.length >= MIN) {
+      const kg = group.filter(big).length, kr = rest.filter(big).length, z = prop2(kg, group.length, kr, rest.length);
+      if (pc(kg, group.length) - pc(kr, rest.length) >= GAP && z >= 1.96)
+        cards.push({ source: 'winStreak', score: z, tier: z >= ZCRIT ? 'clear' : 'early', head: 'Two wins in a row and your size creeps up',
+          body: `After two wins in a row, ${pc(kg, group.length)}% of your trades were oversized (${pl(group.length, 'trade')}). Every other trade: ${pc(kr, rest.length)}%.`,
+          action: 'After two wins, keep risk at your default. Profit from earlier trades is still your money.' });
+    }
+  }
+
   /* 4 a skipped checklist rule that costs R */
   {
     const g = new Map<string, Trade[]>();
@@ -378,6 +414,24 @@ export function insights(ts: Trade[], c: InsightCtx): Insight[] {
       cards.push({ source: 'drawdown', score: share >= 80 ? 3.5 : 2.2, tier: 'fact', head: `Your worst run would use ${share}% of this account's drawdown`,
         body: `Your deepest losing run here was ${fR(-dd)}. At ${money(rUsd)} a trade, that's ${money(dd * rUsd)} of the ${money(lim)} the firm allows.`,
         action: share >= 80 ? 'One bad run from failing. Consider cutting risk per trade until you have a buffer.' : 'Leave room: consider a smaller risk per trade until you have a buffer.' });
+  }
+
+  /* 5b a strategy changed before its last version had enough trades to judge */
+  {
+    let latest: { name: string; v: number; n: number; at: number } | null = null;
+    for (const s of Object.values(c.strategies)) {
+      const mine = c.all.filter((t) => t.strategyId === s.id);
+      for (let v = 1; v < s.version; v++) {
+        const old = mine.filter((t) => t.strategyVersion === v);
+        if (!old.length || old.length >= EARLY) continue;
+        const at = Math.max(...old.map((t) => t.entryAt));
+        if (!latest || at > latest.at) latest = { name: s.name, v, n: old.length, at };
+      }
+    }
+    if (latest && ts.some((t) => c.strategies[t.strategyId]?.name === latest!.name))
+      cards.push({ source: 'earlyChange', score: 1.8, tier: 'fact', head: `You changed ${latest.name} after ${pl(latest.n, 'trade')}`,
+        body: `Version ${latest.v} had ${pl(latest.n, 'trade')} before the rules changed. Under ${EARLY} trades, a result can't separate the rules from luck, so you can't yet tell whether the change helped.`,
+        action: `Give the current version at least ${EARLY} trades before changing it again, unless a rule is plainly broken.` });
   }
 
   /* 6 day ratings */

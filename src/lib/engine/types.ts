@@ -11,7 +11,8 @@ export type Direction = 'long' | 'short';
 export type AccountType = 'challenge' | 'funded' | 'demo';
 export type DrawdownMode = 'static' | 'trailing';
 export type DrawdownBasis = 'balance' | 'equity';
-export type Fuel = 'both' | 'water_only' | 'food_only' | 'neither';
+/** How the trader feels at the check-in. Calm is the baseline the others are compared with. */
+export type Feeling = 'calm' | 'anxious' | 'frustrated' | 'flat' | 'excited';
 export type Carrying = 'nothing' | 'money' | 'home' | 'work' | 'health' | 'other';
 export type StrategyKind = 'rules' | 'discretionary';
 
@@ -76,7 +77,9 @@ export interface Trade {
   sleepHours: number | null;
   usualSchedule: boolean | null;
   carrying: Carrying | null;
-  fuel: Fuel | null;
+  /** Drank water before the session. */
+  water: boolean | null;
+  feeling: Feeling | null;
   sharpness: number | null;
   /** Challenge was still down on its fee when this trade was taken. */
   belowFee: boolean;

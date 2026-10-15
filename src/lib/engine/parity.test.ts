@@ -7,13 +7,20 @@ import fixture from './__fixtures__/prototype.json';
 import type { Trade, Strategy, Account, DayRating } from './types';
 import { core, walkAccount, isPast, verdicts, mistakeCosts, insights, runStateTest, STATE_TESTS } from './index';
 
-const trades = fixture.trades as Trade[];
+/**
+ * The prototype asked about water and food together; V1 asks about water alone and adds how the trader feels.
+ * Map the fixture across, and compare only the tests the two versions share.
+ */
+const trades = (fixture.trades as (Omit<Trade, 'water' | 'feeling'> & { fuel: string })[]).map(({ fuel, ...t }) => ({
+  ...t, water: fuel === 'both' || fuel === 'water_only', feeling: null,
+})) as Trade[];
+const SHARED = new Set(['sleep', 'sched', 'carry', 'feel', 'loss', 'fee']);
 const strategies = Object.fromEntries((fixture.strategies as Strategy[]).map((s) => [s.id, s]));
 const accounts = Object.fromEntries((fixture.accounts as Account[]).map((a) => [a.id, a]));
 const ratings = fixture.ratings as DayRating[];
 const TZ = 'UTC';
 const live = (fixture.accounts as Account[]).filter((a) => a.type !== 'demo').map((a) => a.id);
-const KEY: Record<string, string> = { sleep: 'sleep', schedule: 'sched', carrying: 'carry', fuel: 'fuel', sharpness: 'feel', afterLoss: 'loss', belowFee: 'fee' };
+const KEY: Record<string, string> = { sleep: 'sleep', schedule: 'sched', carrying: 'carry', feeling: 'mood', water: 'water', sharpness: 'feel', afterLoss: 'loss', belowFee: 'fee' };
 /**
  * Deliberate change from the prototype: when a split has two groups that mirror each other exactly
  * (equal strength), the card now always shows the losing side. The prototype picked by floating-point noise.
@@ -44,11 +51,11 @@ describe('engine matches the prototype', () => {
     });
 
     it(`${exp.view}: state patterns`, () => {
-      const got = STATE_TESTS.map((T) => {
+      const got = STATE_TESTS.filter((T) => SHARED.has(KEY[T.key])).map((T) => {
         const r = runStateTest(T, ts, isChallenge);
         return [KEY[T.key], r.state, 'ra' in r ? r.ra : null, 'rb' in r ? r.rb : null];
       });
-      expect(got).toEqual(exp.tests);
+      expect(got).toEqual((exp.tests as unknown[][]).filter((x) => SHARED.has(x[0] as string)));
     });
 
     it(`${exp.view}: strategy verdicts`, () => {

@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import type { Trade, Account } from './types';
-import { wilson, relimit, walkAccount, runStateTest, STATE_TESTS, planScore, rFromUsd, dayKey, followed, core } from './index';
+import { wilson, relimit, walkAccount, runStateTest, STATE_TESTS, planScore, rFromUsd, dayKey, followed, core, ZCRIT, afterTwoWins, feelingBreakdown, insights } from './index';
 
 let n = 0;
 const T = (o: Partial<Trade>): Trade => ({
   id: 't' + n++, accountId: 'a', strategyId: 's', strategyVersion: 1, entryAt: Date.UTC(2026, 9, 1, 14), instrument: 'NAS100',
   direction: 'long', planned: true, impulseReason: '', rulesMet: true, missedRules: [], grade: null, exit: 'as_planned',
   riskPct: 1, defaultRiskPct: 1, overLimit: false, r: 1, usd: 1000, sleepHours: 7, usualSchedule: true, carrying: 'nothing',
-  fuel: 'both', sharpness: 7, belowFee: false, afterLoss: false, ...o,
+  water: true, feeling: 'calm', sharpness: 7, belowFee: false, afterLoss: false, ...o,
 });
 const A = (o: Partial<Account>): Account => ({
   id: 'a', type: 'challenge', firm: '', size: 100000, targets: [8, 5], maxDrawdownPct: 10, dailyLossPct: 5, ddBasis: 'balance',
@@ -86,5 +86,67 @@ describe('pattern honesty', () => {
   it('trades with no check-in are left out of state tests', () => {
     const ts = Array.from({ length: 20 }, () => T({ sleepHours: null }));
     expect(runStateTest(STATE_TESTS[0], ts, () => true).state).toBe('wait');
+  });
+});
+
+describe('feeling, water, winning runs and early strategy changes', () => {
+  const ctx = (strategies: Record<string, import('./types').Strategy>, all: Trade[]) => ({
+    tz: 'UTC', strategies, accounts: { a: A({}) }, all, ratings: [], viewAccountIds: ['a'],
+  });
+  const S = (o: Partial<import('./types').Strategy>) => ({
+    id: 's', name: 'London pullback', kind: 'rules', checklist: ['A'], instruments: ['NAS100'], defaultRiskPct: 1, maxPerDay: null, version: 1, ...o,
+  }) as import('./types').Strategy;
+
+  it('the feeling test compares calm days with every other feeling, as one test', () => {
+    const t = STATE_TESTS.find((x) => x.key === 'feeling')!;
+    const ts = [
+      ...Array.from({ length: 20 }, (_, i) => T({ feeling: 'calm', planned: i >= 4 })),
+      ...Array.from({ length: 20 }, (_, i) => T({ feeling: i % 2 ? 'frustrated' : 'anxious', planned: i >= 16 })),
+    ];
+    const r = runStateTest(t, ts, () => false);
+    expect(r.state).toBe('found');
+    expect(r.state === 'found' && r.text).toBe("On days you didn't feel calm, 80% of your trades went off plan. On calm days, 20%.");
+    const b = feelingBreakdown(ts);
+    expect(b.find((x) => x.feeling === 'frustrated')).toEqual({ feeling: 'frustrated', label: 'Frustrated or angry', n: 10, toPlan: 20 });
+    expect(b.find((x) => x.feeling === 'excited')!.toPlan).toBeNull();
+  });
+
+  it('the water test only uses trades with an answer', () => {
+    const t = STATE_TESTS.find((x) => x.key === 'water')!;
+    const ts = Array.from({ length: 30 }, () => T({ water: null }));
+    expect(runStateTest(t, ts, () => false).state).toBe('wait');
+  });
+
+  it('eight state tests, so the corrected bar is z of 2.5', () => {
+    expect(STATE_TESTS.length).toBe(8);
+    expect(ZCRIT).toBe(2.5);
+  });
+
+  it('after two wins, oversizing is flagged when it creeps', () => {
+    let i = 0;
+    const ts: Trade[] = [];
+    // Repeating pattern: win, win, then an oversized trade. Gives 10 trades after two wins.
+    for (let k = 0; k < 10; k++) ts.push(T({ r: 1, entryAt: i++ }), T({ r: 1, entryAt: i++ }), T({ r: -1, riskPct: 2, entryAt: i++ }), T({ r: -1, entryAt: i++ }));
+    const { group } = afterTwoWins(ts);
+    expect(group.length).toBeGreaterThanOrEqual(8);
+    const cards = insights(ts, ctx({ s: S({}) }, ts));
+    expect(cards.some((c) => c.source === 'winStreak')).toBe(true);
+  });
+
+  it('a strategy changed after fewer than 30 trades gets a fact card', () => {
+    const ts = [
+      ...Array.from({ length: 12 }, (_, i) => T({ strategyVersion: 1, entryAt: i, r: i % 2 ? 1 : -1 })),
+      ...Array.from({ length: 10 }, (_, i) => T({ strategyVersion: 2, entryAt: 100 + i, r: i % 2 ? 1 : -1 })),
+    ];
+    const card = insights(ts, ctx({ s: S({ version: 2 }) }, ts)).find((c) => c.source === 'earlyChange');
+    expect(card?.head).toBe('You changed London pullback after 12 trades');
+  });
+
+  it('no early-change card when the old version had 30 trades', () => {
+    const ts = [
+      ...Array.from({ length: 30 }, (_, i) => T({ strategyVersion: 1, entryAt: i, r: i % 2 ? 1 : -1 })),
+      ...Array.from({ length: 10 }, (_, i) => T({ strategyVersion: 2, entryAt: 100 + i, r: i % 2 ? 1 : -1 })),
+    ];
+    expect(insights(ts, ctx({ s: S({ version: 2 }) }, ts)).some((c) => c.source === 'earlyChange')).toBe(false);
   });
 });

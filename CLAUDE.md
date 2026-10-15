@@ -1,6 +1,6 @@
 # Second Mark
 
-A trading journal for prop traders that checks whether each trade followed the trader's own plan, and links that to their state (sleep, what they're carrying, water and food, sharpness). Built by Isiah Wright with Claude.
+A trading journal for prop traders that checks whether each trade followed the trader's own plan, and links that to their state (sleep, schedule, what they're carrying, how they feel, water, sharpness). Built by Isiah Wright with Claude.
 
 The full rule set is the project doc `second-mark-logic-spec.md`. The tested prototype (version 18) is the reference for behaviour and wording.
 
@@ -21,7 +21,7 @@ The full rule set is the project doc `second-mark-logic-spec.md`. The tested pro
 2. **Health data.** Check-in answers are UK GDPR special category data. They can't be saved without `profiles.health_consent_at` (enforced in the database). Trades logged without a check-in store null state, never defaults.
 3. **One engine.** All numbers come from `src/lib/engine`. Screens never recalculate stats themselves. The engine stays pure: no database, no React, no browser.
 4. **One definition of "to plan":** planned, rules met, risk within default, exit as planned, inside the daily trade limit (`followed()` in `core.ts`).
-5. **Honesty in findings.** Patterns need 8+ trades each side, a 15-point gap and z >= 2.45. Split cards need the profit factors on either side of 1, a 0.4R gap and a test; "Clear" passes a Bonferroni bar across every comparison on the view. Never loosen these to make the app look smarter.
+5. **Honesty in findings.** Patterns need 8+ trades each side, a 15-point gap and z >= 2.50 (Bonferroni over the 8 state tests). Split cards need the profit factors on either side of 1, a 0.4R gap and a test; "Clear" passes a Bonferroni bar across every comparison on the view. Never loosen these to make the app look smarter.
 6. **Wording.** Plain English. "To plan" and "off plan". Tips lead with an action and never refer to course sessions or other existing material. No trade or sizing instructions beyond the trader's own rules. No em dashes.
 7. **Dates** are grouped in the trader's own time zone (`profiles.timezone`) via `dayKey(ts, tz)`.
 8. **Scope.** New ideas go on the V1.1 list in the build plan, not into the current milestone.

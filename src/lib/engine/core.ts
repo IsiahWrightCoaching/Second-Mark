@@ -3,8 +3,8 @@ import type { Trade, NoTradeReason } from './types';
 /** Thresholds. Changing any of these changes what the app claims, so keep them in step with the spec. */
 export const MIN = 8; // trades needed on each side of any comparison
 export const GAP = 15; // percentage points a state pattern must differ by
-/** 7 state tests run on every view; Bonferroni one-sided alpha 0.05/7 gives z of about 2.45. */
-export const ZCRIT = 2.45;
+/** 8 state tests run on every view; Bonferroni one-sided alpha 0.05/8 gives z of about 2.50. */
+export const ZCRIT = 2.5;
 export const EARLY = 30; // under this many trades, numbers are labelled an early read
 export const BE_BAND = 0.05; // |R| under this counts as breakeven
 
