@@ -22,7 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </header>
         {children}
       </div>
-      <Nav />
+      <Nav account={active?.label ?? null} />
     </>
   );
 }

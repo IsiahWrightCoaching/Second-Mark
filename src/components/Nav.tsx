@@ -11,7 +11,7 @@ const TABS = [
   { href: '/strategy', label: 'Strategy', icon: <><path d="M6 4h9l3 3v13H6z" /><path d="M9 11h6M9 15h6M9 7h3" /></> },
 ];
 
-export function Nav() {
+export function Nav({ account }: { account: string | null }) {
   const path = usePathname();
   return (
     <nav aria-label="Main">
@@ -24,6 +24,14 @@ export function Nav() {
             {t.label}
           </Link>
         ))}
+      </div>
+      {/* Wide screens only: the account switcher sits under the tabs. Phones keep it in the header. */}
+      <div className="side-acct">
+        <span className="k">Trading on</span>
+        <Link href="/accounts" className="acct-side" aria-current={path.startsWith('/accounts') ? 'page' : undefined}
+          aria-label={account ? `Active account: ${account}. Change account` : 'Set up an account'}>
+          <span>{account ?? 'Add an account'}</span><span aria-hidden="true">›</span>
+        </Link>
       </div>
     </nav>
   );

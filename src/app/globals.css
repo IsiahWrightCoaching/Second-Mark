@@ -168,14 +168,14 @@ nav .in{max-width:440px;margin:0 auto;display:grid;grid-template-columns:repeat(
    Forms keep a readable column; lists of cards spread into a grid. */
 .side-brand{display:none}
 @media (min-width:900px){
-  nav{top:0;right:auto;width:232px;border-top:0;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:28px}
+  nav{top:0;right:auto;width:256px;border-top:0;border-right:1px solid var(--line);padding:22px 14px;display:flex;flex-direction:column;gap:28px}
   .side-brand{display:block;padding-inline:8px}
   nav .in{max-width:none;margin:0;display:flex;flex-direction:column;gap:2px}
   .tab{flex-direction:row;justify-content:flex-start;gap:12px;font-size:14px;padding:10px 12px;border-radius:10px}
   .tab svg{width:20px;height:20px}
   .tab:hover{background:var(--surface);color:var(--fg)}
   .tab[aria-current="page"]{background:var(--surface)}
-  .app{max-width:none;margin:0 0 0 232px;padding:0 48px 48px}
+  .app{max-width:none;margin:0 0 0 256px;padding:0 48px 48px}
   header{justify-content:flex-end;padding-block:16px}
   header .lock{display:none}
   .acct{max-width:320px}
@@ -184,7 +184,20 @@ nav .in{max-width:440px;margin:0 auto;display:grid;grid-template-columns:repeat(
   h1{font-size:32px}
   .list{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
   .list>.meta{grid-column:1/-1}
-  .toast{bottom:28px;left:calc(50% + 116px)}
+  .toast{bottom:28px;left:calc(50% + 128px)}
 }
 @media (min-width:1400px){.app{padding-inline:72px}}
 .code{font-family:var(--f-num)!important;font-size:26px!important;letter-spacing:.35em;text-align:center}
+
+/* Account switcher in the sidebar (wide screens). */
+.side-acct{display:none}
+@media (min-width:900px){
+  header{display:none}
+  .side-acct{display:flex;flex-direction:column;gap:6px;padding-inline:4px;border-top:1px solid var(--line);padding-top:18px}
+  .side-acct .k{padding-inline:8px}
+  .acct-side{display:flex;align-items:center;justify-content:space-between;gap:8px;text-decoration:none;color:var(--fg);font-family:var(--f-num);font-size:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+  .acct-side span:first-child{min-width:0;line-height:1.45}
+  .acct-side:hover{background:var(--surface)}
+  .acct-side[aria-current="page"]{border-color:var(--fg)}
+  section{padding-top:36px}
+}
