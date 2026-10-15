@@ -28,7 +28,7 @@ The full rule set is the project doc `second-mark-logic-spec.md`. The tested pro
 
 ## Milestones
 1. Foundation: auth, consent, schema + RLS, strategies, accounts wizard. (live)
-2. Logging: check-in, trade log, no-trade days, skipped setups, edit/delete, installable web app. (built; needs migration 20261015120000 run in Supabase)
+2. Logging: check-in, trade log, no-trade days, skipped setups, edit/delete, installable web app. (live; migration 20261015120000 run 15 Oct)
 3. Engine wired to real data (engine already ported and tested).
 4. Review and Stats tabs, insight cards, focus habit, check-in warning, two-loss prompt.
 5. Accounts lifecycle: prop rules from trades, past accounts, delete (30-day bin), CSV export.
