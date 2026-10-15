@@ -187,3 +187,4 @@ nav .in{max-width:440px;margin:0 auto;display:grid;grid-template-columns:repeat(
   .toast{bottom:28px;left:calc(50% + 116px)}
 }
 @media (min-width:1400px){.app{padding-inline:72px}}
+.code{font-family:var(--f-num)!important;font-size:26px!important;letter-spacing:.35em;text-align:center}
